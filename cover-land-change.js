@@ -41,3 +41,66 @@ var L8t1 = function(image) {return image.select(['B2','B3','B4', 'B5', 'B6', 'B7
 es decir, selecciona las que debe y les reasigna nombres iguales para las 2 colecciones*/
 var Mosaico_1 = L8t0(corte_mosaicot0);
 var Mosaico_2 = L8t1(corte_mosaicot1);
+
+/*Relacciones de bandas para construir nuevas bandas con algunas normalizaiones que
+permiten resultados más precisos en las clasificaciones*/
+var rat45_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B5"));
+var rat46_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B6"));
+var rat47_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B7"));
+var rat56_t0 = Mosaico_1.select("B5").divide(Mosaico_1.select("B6"));
+var rat57_t0 = Mosaico_1.select("B5").divide(Mosaico_1.select("B7"));
+var rat67_t0 = Mosaico_1.select("B6").divide(Mosaico_1.select("B7"));
+
+var rat45_t1 = Mosaico_2.select("B4").divide(Mosaico_2.select("B5"));
+var rat46_t1 = Mosaico_2.select("B4").divide(Mosaico_2.select("B6"));
+var rat47_t1 = Mosaico_2.select("B4").divide(Mosaico_2.select("B7"));
+var rat56_t1 = Mosaico_2.select("B5").divide(Mosaico_2.select("B6"));
+var rat57_t1 = Mosaico_2.select("B5").divide(Mosaico_2.select("B7"));
+var rat67_t1 = Mosaico_2.select("B6").divide(Mosaico_2.select("B7"));
+
+//Construcción de pilas de capas con multiples bandas entre originales y bandas relacionadas
+var m_1_RB = Mosaico_1  .addBands(rat45_t0).addBands(rat46_t0).addBands(rat47_t0)
+                        .addBands(rat56_t0).addBands(rat57_t0).addBands(rat67_t0);
+var m_2_RB = Mosaico_2  .addBands(rat45_t1).addBands(rat46_t1).addBands(rat47_t1)
+                        .addBands(rat56_t1).addBands(rat57_t1).addBands(rat67_t1);
+
+//Construcción de mosaico multifechas (del Mosaico 1 y Mosaico 2)
+var m_multifecha = m_1_RB.addBands(m_2_RB);
+
+//PASOS PARA LA CLASIFICACIÓN
+// 1. nombramiento y separación de bandas del mosaico multifechas
+var bands= m_multifecha.bandNames();
+//2. unir las muestras
+var Muestras = Bosque_estable.merge(No_Bosque_estable).merge(Perdida).merge(Agua);
+
+//3.Superponer los puntos de muestras en el mosaico multifecga para hacer el entrenamiento.
+var Entrenamiento = m_multifecha.sampleRegions({
+  collection: Muestras,
+  properties: ['clase'],
+  scale: 500
+});
+//4. Entrenar a un clasificador Random Forest con parámetros predeterminados.
+var Entrenando = ee.Classifier.randomForest().train(Entrenamiento, 'clase', bands);
+
+//5. Clasifica el mosaico multifecha con las mismas bandas utilizadas para el entrenamiento.
+var clasificacion = m_multifecha.select(bands).classify(Entrenando);
+
+
+//Visualización de capas//
+Map.addLayer(Mosaico_1,{'bands': ['B4', 'B5', 'B3'], 'min': 0, 'max': 150},'Mosaico_T1',false);
+Map.addLayer(Mosaico_2,{'bands': ['B4', 'B5', 'B3'], 'min': 0, 'max': 150},'Mosaico_T2',false);//estás bandas estan normalizadas vista infrarojo
+
+//Map.addLayer(clasificacion,  {palette:'0e7a17,fff845,1f2cff', 'min':1, 'max':3},'Clasificación_CART');
+Map.addLayer(clasificacion, {palette:'green,yellow,red,blue', 'min':1, 'max':4},'Clasificación_RandmForest');
+
+
+//Descargar Mosaicos//
+/*Se debe tener en cuenta que al momento de descargar una capa, se debe procurar que la clasificación
+se muestre complentamente en el visor de mapa*/
+Export.image.toDrive
+({image: clasificacion,
+ description: 'clasificacion',
+ fileNamePrefix: 'Deforestacion',
+ scale:30,
+ maxPixels: 1e12,});
+
