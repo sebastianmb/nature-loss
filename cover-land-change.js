@@ -9,7 +9,8 @@ Map.centerObject(Limite,9);
 var Landsat_8_t0  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
 
 var dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-    .filterDate('2022-08-01', '2022-08-30')
+    .filterDate('2022-08-01', '2022-08-28')
+    .filterMetadata('CLOUD_COVER', 'less_than', 80)
     .filterBounds(table);
 
 // Applies scaling factors.
@@ -20,6 +21,7 @@ function applyScaleFactors(image) {
               .addBands(thermalBands, null, true);
 }
 
+
 dataset = dataset.map(applyScaleFactors);
 
 var visualization = {
@@ -29,8 +31,10 @@ var visualization = {
 };
 
 Map.setCenter(-73, 7, 8);
+var median = dataset.mean();
+var clipped = median.clipToCollection(table);
 
-Map.addLayer(dataset, visualization, 'True Color (432)');
+Map.addLayer(clipped, visualization, 'True Color (432)');
 
 
 
