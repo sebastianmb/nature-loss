@@ -9,8 +9,8 @@ Map.centerObject(Limite,9);
 var Landsat_8_t0  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
 
 var dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-    .filterDate('2022-08-01', '2022-08-28')
-    .filterMetadata('CLOUD_COVER', 'less_than', 80)
+    .filterDate('2021-12-01', '2021-12-20')
+    .filterMetadata('CLOUD_COVER', 'less_than',90)
     .filterBounds(table);
 
 // Applies scaling factors.
@@ -137,4 +137,3 @@ Export.image.toDrive
  maxPixels: 1e12,});
 
 */
-
