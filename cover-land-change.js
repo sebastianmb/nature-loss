@@ -3,60 +3,25 @@
 
 var Limite = ee.FeatureCollection(table);
 
-
-//Centrar capa (El valor 9 hace referencia al zoom)
 Map.centerObject(Limite,9);
-var Landsat_8_t0  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
-
-var dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-    .filterDate('2021-12-01', '2021-12-20')
-    .filterMetadata('CLOUD_COVER', 'less_than',90)
-    .filterBounds(table);
-
-// Applies scaling factors.
-function applyScaleFactors(image) {
-  var opticalBands = image.select('SR_B.').multiply(0.0000275).add(-0.2);
-  var thermalBands = image.select('ST_B.*').multiply(0.00341802).add(149.0);
-  return image.addBands(opticalBands, null, true)
-              .addBands(thermalBands, null, true);
-}
-
-
-dataset = dataset.map(applyScaleFactors);
-
-var visualization = {
-  bands: ['SR_B4', 'SR_B3', 'SR_B2'],
-  min: 0.0,
-  max: 0.3,
-};
-
-Map.setCenter(-73, 7, 8);
-var median = dataset.mean();
-var clipped = median.clipToCollection(table);
-
-Map.addLayer(clipped, visualization, 'True Color (432)');
-
-
-
-/*
 
 //------------------COLECCIÓN DE DATOS----------------------//
 var Landsat_8_t0  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
 var Landsat_8_t1  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
 
 //Filtrar la collecció. Primero por fecha, segundo por el límite de estudio y tercero por porncentaje de nubosidad
-var Filtro_L8t0 = Landsat_8_t0.filterDate    ('2022-09-01', '2022-09-30')
+var Filtro_L8t0 = Landsat_8_t0.filterDate    ('2019-09-01', '2020-12-30')
                          .filterBounds  (Limite)
                          .filterMetadata('CLOUD_COVER', 'less_than', 50);
-var Filtro_L8t1 = Landsat_8_t1.filterDate    ('2022-09-30', '2022-10-29')
+var Filtro_L8t1 = Landsat_8_t1.filterDate    ('2021-01-30', '2022-10-29')
                          .filterBounds  (Limite)
                          .filterMetadata('CLOUD_COVER', 'less_than', 50);
 
 /*Aplicación de algoritmo para construcción de mosaicos 
 eligiendo los pixeles con valores concentrados al percentil 50,
-con un porcentaje de nubosidad del pixel de 10 y que elija 50 imagenes para construirlo 
-var mt0_L8 = ee.Algorithms.Landsat.simpleComposite(Filtro_L8t0, 50, 10, 50);  
-var mt1_L8 = ee.Algorithms.Landsat.simpleComposite(Filtro_L8t1, 50, 10, 50);
+con un porcentaje de nubosidad del pixel de 10 y que elija 50 imagenes para construirlo */
+var mt0_L8 = ee.Algorithms.Landsat.simpleComposite(Filtro_L8t0, 50, 90, 5);  
+var mt1_L8 = ee.Algorithms.Landsat.simpleComposite(Filtro_L8t1, 50, 90, 5);
 
 //Cortar los mosaicos con el límite del área de estudio
 var corte_mosaicot0 = mt0_L8.clip(Limite);
@@ -70,12 +35,12 @@ var L8t0 = function(image) {return image.select(['B2','B3','B4', 'B5', 'B6', 'B7
 var L8t1 = function(image) {return image.select(['B2','B3','B4', 'B5', 'B6', 'B7','B8' ], nombres_bandas)};
 
 /*Aplicación de funciones para normalizar los nombres de las bandas,
-es decir, selecciona las que debe y les reasigna nombres iguales para las 2 colecciones
+es decir, selecciona las que debe y les reasigna nombres iguales para las 2 colecciones*/
 var Mosaico_1 = L8t0(corte_mosaicot0);
 var Mosaico_2 = L8t1(corte_mosaicot1);
 
 /*Relacciones de bandas para construir nuevas bandas con algunas normalizaiones que
-permiten resultados más precisos en las clasificaciones
+permiten resultados más precisos en las clasificaciones*/
 var rat45_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B5"));
 var rat46_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B6"));
 var rat47_t0 = Mosaico_1.select("B4").divide(Mosaico_1.select("B7"));
@@ -103,7 +68,7 @@ var m_multifecha = m_1_RB.addBands(m_2_RB);
 // 1. nombramiento y separación de bandas del mosaico multifechas
 var bands= m_multifecha.bandNames();
 //2. unir las muestras
-var Muestras = Bosque_estable.merge(No_Bosque_estable).merge(Perdida).merge(Agua);
+var Muestras = Estado.merge(Presiones).merge(Perdida);
 
 //3.Superponer los puntos de muestras en el mosaico multifecga para hacer el entrenamiento.
 var Entrenamiento = m_multifecha.sampleRegions({
@@ -112,7 +77,7 @@ var Entrenamiento = m_multifecha.sampleRegions({
   scale: 500
 });
 //4. Entrenar a un clasificador Random Forest con parámetros predeterminados.
-var Entrenando = ee.Classifier.randomForest().train(Entrenamiento, 'clase', bands);
+var Entrenando = ee.Classifier.smileRandomForest(2).train(Entrenamiento, 'clase', bands);
 
 //5. Clasifica el mosaico multifecha con las mismas bandas utilizadas para el entrenamiento.
 var clasificacion = m_multifecha.select(bands).classify(Entrenando);
@@ -128,12 +93,11 @@ Map.addLayer(clasificacion, {palette:'green,yellow,red,blue', 'min':1, 'max':4},
 
 //Descargar Mosaicos//
 /*Se debe tener en cuenta que al momento de descargar una capa, se debe procurar que la clasificación
-se muestre complentamente en el visor de mapa
+se muestre complentamente en el visor de mapa 
 Export.image.toDrive
 ({image: clasificacion,
  description: 'clasificacion',
  fileNamePrefix: 'Deforestacion',
  scale:30,
  maxPixels: 1e12,});
-
 */
