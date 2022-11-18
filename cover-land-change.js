@@ -10,10 +10,10 @@ var Landsat_8_t0  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013
 var Landsat_8_t1  = ee.ImageCollection ("LC8_L1T"); //Disponibilidad, entre 2013-presente
 
 //Filtrar la collecció. Primero por fecha, segundo por el límite de estudio y tercero por porncentaje de nubosidad
-var Filtro_L8t0 = Landsat_8_t0.filterDate    ('2019-09-01', '2020-12-30')
+var Filtro_L8t0 = Landsat_8_t0.filterDate    ('2013-09-01', '2017-12-30')
                          .filterBounds  (Limite)
                          .filterMetadata('CLOUD_COVER', 'less_than', 50);
-var Filtro_L8t1 = Landsat_8_t1.filterDate    ('2021-01-30', '2022-10-29')
+var Filtro_L8t1 = Landsat_8_t1.filterDate    ('2017-01-30', '2022-10-29')
                          .filterBounds  (Limite)
                          .filterMetadata('CLOUD_COVER', 'less_than', 50);
 
@@ -101,3 +101,4 @@ Export.image.toDrive
  scale:30,
  maxPixels: 1e12,});
 */
+
